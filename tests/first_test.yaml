@@ -1,9 +1,14 @@
 defaults: &common
   mod_order: 4
-  block_len: 512
+  grid:
+    num_sc: 64
+    num_blocks: 8
   snr_db: [0, 2, 4, 6, 8, 10]
+  num_trials: 100
 
 curves:
-  ofdm_doppler10:
+  ofdm:
     <<: *common
-    doppler_hz: 10e6
+    waveform:
+      type: ofdm
+      cp_len: 0.25
