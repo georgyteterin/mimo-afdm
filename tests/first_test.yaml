@@ -1,0 +1,9 @@
+defaults: &common
+  mod_order: 4
+  block_len: 512
+  snr_db: [0, 2, 4, 6, 8, 10]
+
+curves:
+  ofdm_doppler10:
+    <<: *common
+    doppler_hz: 10e6
