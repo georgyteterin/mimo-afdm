@@ -1,5 +1,5 @@
 import numpy as np
-import source
+import phy
 
 def run_test(cfg: dict):
 
@@ -21,7 +21,7 @@ def run_test(cfg: dict):
 def run_snr_point(snr_db, cfg):
 
     wf_cfg = cfg["waveform"]
-    wf = source.waveforms.WAVEFORMS[wf_cfg["type"]]
+    wf = phy.waveforms.WAVEFORMS[wf_cfg["type"]]
     grid_params = cfg["grid"]
     grid_shape = (grid_params["num_blocks"], grid_params["num_sc"])
     num_bits = cfg["num_bits"]
@@ -29,14 +29,14 @@ def run_snr_point(snr_db, cfg):
     is_cp_energy_counted = cfg["noise"]["count_cp_energy"]
 
     tx_bits = np.random.randint(2, size=num_bits)
-    tx_symbs = source.qam_mapper(tx_bits, mod_order)
+    tx_symbs = phy.qam_mapper(tx_bits, mod_order)
 
     tx_sig = wf.modulate(tx_symbs, wf_cfg, grid_shape)
 
-    rx_sig, _ = source.add_noise(tx_sig, snr_db, num_bits, grid_params["num_re"], is_cp_energy_counted)
+    rx_sig, _ = phy.add_noise(tx_sig, snr_db, num_bits, grid_params["num_re"], is_cp_energy_counted)
 
     rx_grid = wf.demodulate(rx_sig, wf_cfg, grid_shape)
     rx_symbs = rx_grid.reshape(-1)
-    rx_bits = source.qam_demapper(rx_symbs, mod_order)
+    rx_bits = phy.qam_demapper(rx_symbs, mod_order)
 
     return np.sum(tx_bits != rx_bits)
