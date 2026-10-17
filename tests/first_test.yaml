@@ -8,7 +8,7 @@ defaults: &common
     count_cp_energy: false
   num_trials: 1000
 
-curves:
+tests:
   ofdm_cp=0.25:
     <<: *common
     waveform:

@@ -14,7 +14,7 @@ def run_test(cfg: dict):
         num_err = 0
         for _ in range(num_trials):
             num_err += run_snr_point(snr_db, cfg)
-        stat["ber"][j_snr] = num_err / (num_trials * cfg["num_bits"])
+        stat["ber"][j_snr] = num_err / (num_trials * num_bits)
 
     return stat
 
