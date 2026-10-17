@@ -21,13 +21,15 @@ def run_test(cfg: dict):
 def run_snr_point(snr_db, cfg):
 
     wf_cfg = cfg["waveform"]
-    wf = phy.waveforms.WAVEFORMS[wf_cfg["type"]]
     grid_params = cfg["grid"]
-    grid_shape = (grid_params["num_blocks"], grid_params["num_sc"])
     num_bits = cfg["num_bits"]
     mod_order = cfg["mod_order"]
     is_cp_energy_counted = cfg["noise"]["count_cp_energy"]
 
+    grid_shape = (grid_params["num_blocks"], grid_params["num_sc"])
+    wf = phy.waveforms.WAVEFORMS[wf_cfg["type"]]
+
+    # Pipeline
     tx_bits = np.random.randint(2, size=num_bits)
     tx_symbs = phy.qam_mapper(tx_bits, mod_order)
 
