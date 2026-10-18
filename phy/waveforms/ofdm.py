@@ -1,5 +1,8 @@
 import numpy as np
 
+def derive_params(cfg):
+    return []
+
 def modulate(symbs, wf_cfg, grid_shape):
     _, num_sc = grid_shape
     sig_to_cp_ratio = wf_cfg["cp_len"]

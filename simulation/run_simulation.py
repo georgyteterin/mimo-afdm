@@ -35,7 +35,9 @@ def run_snr_point(snr_db, cfg):
 
     tx_sig = wf.modulate(tx_symbs, wf_cfg, grid_shape)
 
-    rx_sig, _ = phy.add_noise(tx_sig, snr_db, num_bits, grid_params["num_re"], is_cp_energy_counted)
+    chan_implementation = phy.fading_channel.generate(cfg)
+    rx_sig = phy.fading_channel.apply(tx_sig, chan_implementation)
+    rx_sig, _ = phy.add_noise(rx_sig, snr_db, num_bits, grid_params["num_re"], is_cp_energy_counted)
 
     rx_grid = wf.demodulate(rx_sig, wf_cfg, grid_shape)
     rx_symbs = rx_grid.reshape(-1)

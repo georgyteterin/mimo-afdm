@@ -3,6 +3,13 @@ defaults: &common
   grid:
     num_sc: 64
     num_blocks: 8
+    scs_hz: 15000
+  channel:
+    paths:
+      - {delay_smpl: 0, avg_gain_db: 0.0}
+    max_doppler_hz: 0
+    doppler_mode: jakes
+    fading: none
   noise:
     snr_db: [0, 2, 4, 6, 8, 10]
     count_cp_energy: false
