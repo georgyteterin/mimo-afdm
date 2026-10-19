@@ -1,0 +1,54 @@
+defaults: &common
+  mod_order: 4
+  grid:
+    num_sc: 64
+    num_blocks: 8
+    scs_hz: 15000
+  noise:
+    snr_db: [0, 2, 4, 6, 8, 10]
+    count_cp_energy: false
+  # equalizer:
+  #     type: mmse_full
+  num_trials: 1000
+
+tests:
+  ofdm_doppler_10Hz:
+    <<: *common
+    waveform:
+      type: ofdm
+      cp_len: 0.25
+    channel:
+      paths:
+        - {delay_smpl: 0, avg_gain_db: 0.0, doppler_hz: 10}
+      doppler_mode: fixed
+      fading: none
+  ofdm_doppler_100Hz:
+    <<: *common
+    waveform:
+      type: ofdm
+      cp_len: 0.25
+    channel:
+      paths:
+        - {delay_smpl: 0, avg_gain_db: 0.0, doppler_hz: 100}
+      doppler_mode: fixed
+      fading: none
+  afdm_doppler_10Hz:
+    <<: *common
+    waveform:
+      type: afdm
+      cp_len: 0.25
+    channel:
+      paths:
+        - {delay_smpl: 0, avg_gain_db: 0.0, doppler_hz: 10}
+      doppler_mode: fixed
+      fading: none
+  afdm_doppler_100Hz:
+    <<: *common
+    waveform:
+      type: afdm
+      cp_len: 0.25
+    channel:
+      paths:
+        - {delay_smpl: 0, avg_gain_db: 0.0, doppler_hz: 100}
+      doppler_mode: fixed
+      fading: none
