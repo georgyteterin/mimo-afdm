@@ -2,11 +2,14 @@ import copy
 import yaml 
 import numpy as np
 import phy
+import logging
 
 US_TO_S_RATIO = 1e-6
 ROUND_THRESHOLD = 1e-3
 FADING_TYPES = ("rayleigh", "none")
 DOPPLER_MODES = ("jakes", "fixed")
+
+logger = logging.getLogger(__name__)
 
 def get_tests(path):
     with open(path, encoding="utf-8") as f:
@@ -21,13 +24,13 @@ def derive_params(cfg):
     assert num_bits_per_sym % 1 == 0, "Mod order needs to be power 2 of integer"
 
     equalizer_type = cfg["equalizer"]["type"]
-    assert equalizer_type in phy.equalizers.EQUALIZERS, f"equalizer must be one of {tuple(equalizers.EQUALIZERS)}"
+    assert equalizer_type in phy.equalizers.EQUALIZERS, f"equalizer must be one of {tuple(phy.equalizers.EQUALIZERS)}"
 
     cfg["num_bits"] = grid["num_re"] * int(num_bits_per_sym)
     derive_channel(cfg)
     wf = phy.waveforms.WAVEFORMS[cfg["waveform"]["type"]]
     for message in wf.derive_params(cfg):
-        log_warning(f"{cfg['name']}: {message}")
+        logger.warning("%s: %s", cfg["name"], message)
 
     return cfg
 
@@ -51,7 +54,7 @@ def derive_channel(cfg):
             delay_exact_smpl = path["delay_us"] * US_TO_S_RATIO * sampling_rate_hz
             delay_smpl = int(round(delay_exact_smpl))
             if abs(delay_smpl - delay_exact_smpl) > ROUND_THRESHOLD:
-                log_warning(f"{cfg['name']}: delay {path['delay_us']} us = {delay_exact_smpl:.3f} smpl, rounded to {delay_smpl}")
+                logger.warning("%s: delay %s us = %.3f smpl, rounded to %d", cfg["name"], path["delay_us"], delay_exact_smpl, delay_smpl)
         delays_smpl.append(delay_smpl)
         avg_gains_db.append(path.get("avg_gain_db", 0.0))
 
@@ -76,7 +79,3 @@ def derive_channel(cfg):
     channel_cfg["delays_smpl"] = delays_smpl
     channel_cfg["avg_powers"] = avg_powers.tolist()
     channel_cfg["max_doppler_shift_norm"] = float(max_doppler_shift_norm)
-
-def log_warning(message):
-    # TODO: replace with logger
-    print(f"WARNING: {message}")

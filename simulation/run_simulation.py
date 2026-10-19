@@ -1,7 +1,13 @@
+from tqdm import tqdm
+import logging
 import numpy as np
 import phy
 
+logger = logging.getLogger(__name__)
+
 def run_test(global_cfg: dict):
+
+    test_name = global_cfg["name"]
 
     snr_vals = np.array(global_cfg["noise"]["snr_db"])
     num_trials = global_cfg["num_trials"]
@@ -16,12 +22,16 @@ def run_test(global_cfg: dict):
     stat = {}
     stat["ber"] = np.zeros(snr_vals.shape)
 
+    logger.info("%s started: %d SNR points, %d trials each", test_name.upper(), len(snr_vals), num_trials)
+
     for j_snr, snr_db in enumerate(snr_vals):
         num_err = 0
         for _ in range(num_trials):
             num_err += run_snr_point(snr_db, global_cfg, test_cfg)
         stat["ber"][j_snr] = num_err / (num_trials * num_bits)
+        logger.info("[%i/%i] SNR %s dB done: BER=%.3e", j_snr+1, len(snr_vals), snr_db, stat["ber"][j_snr])
 
+    logger.info("%s finished \n", test_name.upper())
     return stat
 
 def run_snr_point(snr_db, global_cfg, test_cfg):

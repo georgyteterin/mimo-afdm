@@ -7,9 +7,9 @@ defaults: &common
   channel:
     paths:
       - {delay_us: 0.0, avg_gain_db: 0.0}
-      - {delay_smpl: 1.5, avg_gain_db: -3.0}
-      - {delay_smpl: 1.7, avg_gain_db: -6.0}
-      - {delay_smpl: 2.1, avg_gain_db: -4.0}
+      - {delay_us: 1.5, avg_gain_db: -3.0}
+      - {delay_us: 1.7, avg_gain_db: -6.0}
+      - {delay_us: 2.1, avg_gain_db: -4.0}
     max_doppler_hz: 1500
     doppler_mode: jakes
     fading: rayleigh
