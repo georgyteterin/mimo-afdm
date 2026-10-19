@@ -1,6 +1,6 @@
 import simulation as sim
 
-tests = sim.get_tests("tests\different_doppler.yaml")
+tests = sim.get_tests("tests/fading_test.yaml")
 
 stat = {}
 for test in tests:

@@ -6,7 +6,7 @@ import phy
 US_TO_S_RATIO = 1e-6
 ROUND_THRESHOLD = 1e-3
 FADING_TYPES = ("rayleigh", "none")
-doppler_modeS = ("jakes", "fixed")
+DOPPLER_MODES = ("jakes", "fixed")
 
 def get_tests(path):
     with open(path, encoding="utf-8") as f:
@@ -19,6 +19,9 @@ def derive_params(cfg):
 
     num_bits_per_sym = np.log2(cfg["mod_order"])
     assert num_bits_per_sym % 1 == 0, "Mod order needs to be power 2 of integer"
+
+    equalizer_type = cfg["equalizer"]["type"]
+    assert equalizer_type in phy.equalizers.EQUALIZERS, f"equalizer must be one of {tuple(equalizers.EQUALIZERS)}"
 
     cfg["num_bits"] = grid["num_re"] * int(num_bits_per_sym)
     derive_channel(cfg)
@@ -35,7 +38,7 @@ def derive_channel(cfg):
     channel_cfg = cfg["channel"]
 
     assert channel_cfg["fading"] in FADING_TYPES, f"fading must be one of {FADING_TYPES}"
-    assert channel_cfg["doppler_mode"] in doppler_modeS, f"doppler_mode must be one of {doppler_modeS}"
+    assert channel_cfg["doppler_mode"] in DOPPLER_MODES, f"doppler_mode must be one of {DOPPLER_MODES}"
     is_doppler_fixed = channel_cfg["doppler_mode"] == "fixed"
 
     delays_smpl, avg_gains_db, fixed_dopplers_norm = [], [], []
