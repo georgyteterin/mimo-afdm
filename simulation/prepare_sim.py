@@ -23,6 +23,8 @@ def derive_params(cfg):
     num_bits_per_sym = np.log2(cfg["mod_order"])
     assert num_bits_per_sym % 1 == 0, "Mod order needs to be power 2 of integer"
 
+    if "equalizer" not in cfg:
+        cfg["equalizer"] = {"type": "transparent"}
     equalizer_type = cfg["equalizer"]["type"]
     assert equalizer_type in phy.equalizers.EQUALIZERS, f"equalizer must be one of {tuple(phy.equalizers.EQUALIZERS)}"
 

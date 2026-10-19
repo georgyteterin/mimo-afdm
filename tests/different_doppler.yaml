@@ -7,6 +7,8 @@ defaults: &common
   noise:
     snr_db: [0, 2, 4, 6, 8, 10]
     count_cp_energy: false
+  # equalizer:
+  #     type: mmse_full
   num_trials: 1000
 
 tests:

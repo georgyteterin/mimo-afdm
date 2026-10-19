@@ -16,12 +16,12 @@ defaults: &common
   num_trials: 1000
 
 tests:
-  ofdm_cp=0.25:
+  ofdm_awgn:
     <<: *common
     waveform:
       type: ofdm
       cp_len: 0.25
-  afdm_cp=0.25:
+  afdm_awgn:
     <<: *common
     waveform:
       type: afdm
