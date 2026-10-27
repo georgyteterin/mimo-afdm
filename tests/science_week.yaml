@@ -1,0 +1,38 @@
+defaults: &common
+  mod_order: 4
+  grid:
+    num_sc: 64
+    num_blocks: 8
+    scs_hz: 15000
+  channel:
+    paths:
+      - {delay_smpl: 0, avg_gain_db: 0.0}
+      - {delay_smpl: 2, avg_gain_db: 0.0}
+      - {delay_smpl: 5, avg_gain_db: 0.0}
+      - {delay_smpl: 7, avg_gain_db: 0.0}
+    max_doppler_norm: 1.5
+    doppler_mode: jakes
+    fading: rayleigh
+  noise:
+    # snr_db: [0, 4, 8, 12, 16, 20, 24]
+    snr_db: [0, 2, 4, 6,  8, 10, 12, 14, 16, 18, 20, 22, 24]
+    count_cp_energy: false
+  equalizer:
+    type: mmse_full
+  num_trials: 400
+
+tests:
+  ofdm_mmse:
+    <<: *common
+    waveform:
+      type: ofdm
+      cp_len: 0.25
+    num_trials: 400
+
+  afdm_mmse:
+    <<: *common
+    waveform:
+      type: afdm
+      cp_len: 0.25
+      doppler_guard_bins: 1
+    num_trials: 600
