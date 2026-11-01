@@ -11,6 +11,8 @@ def generate(cfg):
         gains = np.sqrt(avg_powers / 2) * (np.random.randn(num_paths) + 1j * np.random.randn(num_paths))
     else:
         gains = np.sqrt(avg_powers).astype(complex)
+        if channel_cfg.get("random_phases", False):
+            gains *= np.exp(2j * np.pi * np.random.uniform(0, 1, num_paths))
 
     if channel_cfg["doppler_mode"] == "jakes":
         arrival_angles_rad = np.random.uniform(-np.pi, np.pi, num_paths)

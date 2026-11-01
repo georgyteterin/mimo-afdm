@@ -13,8 +13,9 @@ defaults: &common
     max_doppler_hz: 100
     doppler_mode: jakes
     fading: none
+    random_phases: true
   noise:
-    snr_db: [0, 2, 4, 6, 8, 10]
+    ebn0_db: [0, 2, 4, 6, 8, 10]
     count_cp_energy: false
   num_trials: 1000
 
@@ -24,3 +25,5 @@ tests:
     waveform:
       type: ofdm
       cp_len: 0.25
+    equalizer:
+      type: mmse_diag

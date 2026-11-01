@@ -14,8 +14,6 @@ def qam_mapper(bits: np.ndarray, mod_order: int) -> np.ndarray:
 
     num_symbols = len(bits) // num_bits_per_symbol
 
-    assert is_power_of_two(num_symbols), "Number of symbols must be a power of 2"
-    
     bit_chunks = bits.reshape(num_symbols, num_bits_per_symbol)
     weights = 2**np.arange(num_bits_per_symbol)[::-1]
     symb_idxs = bit_chunks @ weights
@@ -38,6 +36,3 @@ def qam_demapper(symbs: np.ndarray, mod_order: int) -> np.ndarray:
     bits = (symb_idxs[:, None] >> shifts) & 1
 
     return bits.reshape(-1)
-
-def is_power_of_two(n: int) -> bool:
-    return n > 0 and (n & (n - 1)) == 0

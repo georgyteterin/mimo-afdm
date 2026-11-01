@@ -11,7 +11,7 @@ defaults: &common
     doppler_mode: jakes
     fading: none
   noise:
-    snr_db: [0, 2, 4, 6, 8, 10]
+    ebn0_db: [0, 2, 4, 6, 8, 10]
     count_cp_energy: false
   num_trials: 1000
 
