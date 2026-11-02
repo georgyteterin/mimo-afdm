@@ -23,6 +23,12 @@ def derive_params(cfg):
     num_bits_per_sym = np.log2(cfg["mod_order"])
     assert num_bits_per_sym % 1 == 0, "Mod order needs to be power 2 of integer"
 
+    if "seed" not in cfg:
+        cfg["seed"] = 0
+    if cfg["seed"] is None:
+        cfg["seed"] = int(np.random.SeedSequence().entropy)
+        logger.info("%s: seed is null, drawn from OS entropy: %d", cfg["name"], cfg["seed"])
+
     if "equalizer" not in cfg:
         cfg["equalizer"] = {"type": "transparent"}
     equalizer_type = cfg["equalizer"]["type"]

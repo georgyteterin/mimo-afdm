@@ -2,7 +2,23 @@ import logging
 import numpy as np
 import phy
 
+STREAM_BITS = 0
+STREAM_CHANNEL = 1
+STREAM_NOISE = 2
+EBN0_KEY_SCALE = 100           # 0.01 dB resolution
+EBN0_KEY_OFFSET = 1_000_000    # SeedSequence needs non-negative ints
+
 logger = logging.getLogger(__name__)
+
+def make_rngs(base_seed, ebn0_db, j_trial):
+    ebn0_key = int(round(ebn0_db * EBN0_KEY_SCALE)) + EBN0_KEY_OFFSET
+    def make_rng(stream_id):
+        return np.random.default_rng(np.random.SeedSequence([base_seed, ebn0_key, j_trial, stream_id]))
+    return {
+        "bits": make_rng(STREAM_BITS),
+        "channel": make_rng(STREAM_CHANNEL),
+        "noise": make_rng(STREAM_NOISE),
+    }
 
 def run_test(global_cfg: dict):
 
@@ -27,15 +43,16 @@ def run_test(global_cfg: dict):
 
     for j_ebn0, ebn0_db in enumerate(ebn0_vals_db):
         num_err = 0
-        for _ in range(num_trials):
-            num_err += run_ebn0_point(ebn0_db, global_cfg, test_cfg)
+        for j_trial in range(num_trials):
+            rngs = make_rngs(global_cfg["seed"], ebn0_db, j_trial)
+            num_err += run_ebn0_point(ebn0_db, global_cfg, test_cfg, rngs)
         stat["ber"][j_ebn0] = num_err / (num_trials * num_bits)
         logger.info("[%i/%i] Eb/N0 %s dB done: BER=%.3e", j_ebn0 + 1, len(ebn0_vals_db), ebn0_db, stat["ber"][j_ebn0])
 
     logger.info("%s finished \n", test_name.upper())
     return stat
 
-def run_ebn0_point(ebn0_db, global_cfg, test_cfg):
+def run_ebn0_point(ebn0_db, global_cfg, test_cfg, rngs):
 
     wf_cfg = global_cfg["waveform"]
     grid_params = global_cfg["grid"]
@@ -49,14 +66,14 @@ def run_ebn0_point(ebn0_db, global_cfg, test_cfg):
     wf = phy.waveforms.WAVEFORMS[wf_cfg["type"]]
 
     # Pipeline
-    tx_bits = np.random.randint(2, size=num_bits)
+    tx_bits = rngs["bits"].integers(2, size=num_bits)
     tx_symbs = phy.qam_mapper(tx_bits, mod_order)
 
     tx_sig = wf.modulate(tx_symbs, wf_cfg, grid_shape)
 
-    chan_implementation = phy.fading_channel.generate(global_cfg)
+    chan_implementation = phy.fading_channel.generate(global_cfg, rngs["channel"])
     rx_sig = phy.fading_channel.apply(tx_sig, chan_implementation)
-    rx_sig, noise_energy = phy.add_noise(rx_sig, ebn0_db, num_bits, grid_params["num_re"], is_cp_energy_counted)
+    rx_sig, noise_energy = phy.add_noise(rx_sig, ebn0_db, num_bits, grid_params["num_re"], is_cp_energy_counted, rngs["noise"])
 
     rx_symbs = wf.demodulate(rx_sig, wf_cfg, grid_shape).reshape(grid_shape)
 

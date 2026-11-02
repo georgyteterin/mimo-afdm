@@ -9,6 +9,7 @@ defaults: &common
     count_cp_energy: false
   # equalizer:
   #     type: mmse_full
+  seed: 0
   num_trials: 1000
 
 tests:
