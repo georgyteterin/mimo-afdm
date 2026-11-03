@@ -1,2 +1,2 @@
-from .run_simulation import run_ebn0_point, run_test
+from .run_simulation import run_trial, run_test
 from .prepare_sim import get_tests

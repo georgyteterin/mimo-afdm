@@ -12,7 +12,11 @@ def calc_transform_matrices(wf, wf_cfg, num_sc):
 
     return mod_matrix, demod_matrix
 
-def calc_eff_chan_mtrx(chan_implementation, mod_matrix, demod_matrix, num_blocks):
+def calc_eff_chan_mtrx(is_h_eff_needed, chan_implementation, mod_matrix, demod_matrix, num_blocks):
+    
+    if not is_h_eff_needed:
+        return None
+    
     block_len_smpl, num_sc = mod_matrix.shape
     cp_len_smpl = block_len_smpl - num_sc
 

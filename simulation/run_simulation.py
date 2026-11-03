@@ -31,7 +31,6 @@ def run_test(global_cfg: dict):
 
     wf = phy.waveforms.WAVEFORMS[global_cfg["waveform"]["type"]]
     test_cfg = {}
-    test_cfg["equ"] = phy.equalizers.EQUALIZERS[equalizer_type]
     test_cfg["is_h_eff_needed"] = phy.equalizers.IS_H_EFF_NEEDED[equalizer_type]
     if test_cfg["is_h_eff_needed"]:
         test_cfg["mod_mtrx"], test_cfg["demod_mtrx"] = phy.effective_channel.calc_transform_matrices(wf, global_cfg["waveform"], global_cfg["grid"]["num_sc"])
@@ -45,43 +44,28 @@ def run_test(global_cfg: dict):
         num_err = 0
         for j_trial in range(num_trials):
             rngs = make_rngs(global_cfg["seed"], ebn0_db, j_trial)
-            num_err += run_ebn0_point(ebn0_db, global_cfg, test_cfg, rngs)
+            num_err += run_trial(ebn0_db, global_cfg, test_cfg, rngs)
         stat["ber"][j_ebn0] = num_err / (num_trials * num_bits)
         logger.info("[%i/%i] Eb/N0 %s dB done: BER=%.3e", j_ebn0 + 1, len(ebn0_vals_db), ebn0_db, stat["ber"][j_ebn0])
 
     logger.info("%s finished \n", test_name.upper())
     return stat
 
-def run_ebn0_point(ebn0_db, global_cfg, test_cfg, rngs):
+def run_trial(ebn0_db, global_cfg, test_cfg, rngs):
 
-    wf_cfg = global_cfg["waveform"]
     grid_params = global_cfg["grid"]
     num_bits = global_cfg["num_bits"]
-    mod_order = global_cfg["mod_order"]
     is_cp_energy_counted = global_cfg["noise"]["count_cp_energy"]
 
-    equalizer = test_cfg["equ"]
-
-    grid_shape = (grid_params["num_blocks"], grid_params["num_sc"])
-    wf = phy.waveforms.WAVEFORMS[wf_cfg["type"]]
-
-    # Pipeline
     tx_bits = rngs["bits"].integers(2, size=num_bits)
-    tx_symbs = phy.qam_mapper(tx_bits, mod_order)
-
-    tx_sig = wf.modulate(tx_symbs, wf_cfg, grid_shape)
+    tx_sig = phy.transceiver.run_tx_chain(tx_bits, global_cfg)
 
     chan_implementation = phy.fading_channel.generate(global_cfg, rngs["channel"])
-    rx_sig = phy.fading_channel.apply(tx_sig, chan_implementation)
-    rx_sig, noise_energy = phy.add_noise(rx_sig, ebn0_db, num_bits, grid_params["num_re"], is_cp_energy_counted, rngs["noise"])
+    rx_sig_no_noise = phy.fading_channel.apply(tx_sig, chan_implementation)
+    rx_sig, noise_energy = phy.add_noise(rx_sig_no_noise, ebn0_db, num_bits, grid_params["num_re"], is_cp_energy_counted, rngs["noise"])
 
-    rx_symbs = wf.demodulate(rx_sig, wf_cfg, grid_shape).reshape(grid_shape)
-
-    h_eff = None
-    if test_cfg["is_h_eff_needed"]:
-        h_eff = phy.effective_channel.calc_eff_chan_mtrx(chan_implementation, test_cfg["mod_mtrx"], test_cfg["demod_mtrx"], grid_params["num_blocks"])
-    est_symbs = equalizer(rx_symbs, h_eff, noise_energy)
-    rx_bits = phy.qam_demapper(est_symbs.reshape(-1), mod_order)
+    h_eff = phy.effective_channel.calc_eff_chan_mtrx(test_cfg["is_h_eff_needed"], chan_implementation, test_cfg["mod_mtrx"], test_cfg["demod_mtrx"], grid_params["num_blocks"])
+    rx_bits = phy.transceiver.run_rx_chain(rx_sig, h_eff, noise_energy, global_cfg)
 
     num_bit_errors = np.sum(tx_bits != rx_bits)
     return num_bit_errors
