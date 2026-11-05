@@ -64,7 +64,9 @@ def run_trial(ebn0_db, global_cfg, test_cfg, rngs):
     rx_sig_no_noise = phy.fading_channel.apply(tx_sig, chan_implementation)
     rx_sig, noise_energy = phy.add_noise(rx_sig_no_noise, ebn0_db, num_bits, grid_params["num_re"], is_cp_energy_counted, rngs["noise"])
 
-    h_eff = phy.effective_channel.calc_eff_chan_mtrx(test_cfg["is_h_eff_needed"], chan_implementation, test_cfg["mod_mtrx"], test_cfg["demod_mtrx"], grid_params["num_blocks"])
+    h_eff = None
+    if test_cfg["is_h_eff_needed"]:
+        h_eff = phy.effective_channel.calc_eff_chan_mtrx(chan_implementation, test_cfg["mod_mtrx"], test_cfg["demod_mtrx"], grid_params["num_blocks"])
     rx_bits = phy.transceiver.run_rx_chain(rx_sig, h_eff, noise_energy, global_cfg)
 
     num_bit_errors = np.sum(tx_bits != rx_bits)
