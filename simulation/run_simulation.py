@@ -36,7 +36,9 @@ def run_test(global_cfg: dict):
         test_cfg["mod_mtrx"], test_cfg["demod_mtrx"] = phy.effective_channel.calc_transform_matrices(wf, global_cfg["waveform"], global_cfg["grid"]["num_sc"])
 
     stat = {}
-    stat["ber"] = np.zeros(ebn0_vals_db.shape)
+    stat["ebn0_db"] = ebn0_vals_db
+    stat["num_err"] = np.zeros(ebn0_vals_db.shape, dtype=int)
+    stat["num_bits"] = np.full(ebn0_vals_db.shape, num_trials * num_bits)
 
     logger.info("%s started: %d Eb/N0 points, %d trials each", test_name.upper(), len(ebn0_vals_db), num_trials)
 
@@ -45,8 +47,10 @@ def run_test(global_cfg: dict):
         for j_trial in range(num_trials):
             rngs = make_rngs(global_cfg["seed"], ebn0_db, j_trial)
             num_err += run_trial(ebn0_db, global_cfg, test_cfg, rngs)
-        stat["ber"][j_ebn0] = num_err / (num_trials * num_bits)
-        logger.info("[%i/%i] Eb/N0 %s dB done: BER=%.3e", j_ebn0 + 1, len(ebn0_vals_db), ebn0_db, stat["ber"][j_ebn0])
+        stat["num_err"][j_ebn0] = num_err
+        logger.info("[%i/%i] Eb/N0 %s dB done: BER=%.3e", j_ebn0 + 1, len(ebn0_vals_db), ebn0_db, num_err / stat["num_bits"][j_ebn0])
+
+    stat["ber"] = stat["num_err"] / stat["num_bits"]
 
     logger.info("%s finished \n", test_name.upper())
     return stat
