@@ -69,14 +69,14 @@ def load_result(json_path):
     with open(json_path, encoding="utf-8") as f:
         return json.load(f)
 
-def check_curve(curve, where):
+def check_curve(curve, where, is_result_checked=True):
     errors = []
     unknown_keys = [key for key in curve if key not in CURVE_KEYS]
     if unknown_keys:
         errors.append(f"unknown keys {unknown_keys}, allowed {list(CURVE_KEYS)}")
     if "path" not in curve:
         errors.append("'path' is required")
-    elif not resolve_json_path(curve["path"]).is_file():
+    elif is_result_checked and not resolve_json_path(curve["path"]).is_file():
         errors.append(f"result file not found: {curve['path']}")
     if "color" in curve and not is_color_like(curve["color"]):
         errors.append(f"unknown color '{curve['color']}'")
@@ -88,7 +88,7 @@ def check_curve(curve, where):
         errors.append(f"lw must be a positive number, got '{curve['lw']}'")
     return [f"{where}: {error}" for error in errors]
 
-def check_plot_cfg(plot_cfg, plot_cfg_path):
+def check_plot_cfg(plot_cfg, plot_cfg_path, is_result_checked=True):
     errors = []
     unknown_keys = [key for key in plot_cfg if key not in PLOT_CFG_KEYS]
     if unknown_keys:
@@ -100,7 +100,7 @@ def check_plot_cfg(plot_cfg, plot_cfg_path):
     if not curves:
         errors.append(f"{plot_cfg_path}: 'curves' is empty")
     for j_curve, curve in enumerate(curves):
-        errors += check_curve(curve, f"{plot_cfg_path}, curve {j_curve + 1}")
+        errors += check_curve(curve, f"{plot_cfg_path}, curve {j_curve + 1}", is_result_checked)
     if errors:
         raise SystemExit("\n".join(errors + [f"See {REFERENCE_PATH}"]))
 
