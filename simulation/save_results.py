@@ -49,5 +49,4 @@ def save_results(cfg_path, test_cfg, stat, started_at, duration_s, out_dir="resu
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(result, f, indent=2, default=convert_numpy)
-    logger.info("%s: results saved to %s", test_cfg["name"], out_path)
     return out_path

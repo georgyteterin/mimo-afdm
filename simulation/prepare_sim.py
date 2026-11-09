@@ -35,10 +35,10 @@ def derive_params(cfg):
     assert equalizer_type in phy.equalizers.EQUALIZERS, f"equalizer must be one of {tuple(phy.equalizers.EQUALIZERS)}"
 
     cfg["num_bits"] = grid["num_re"] * int(num_bits_per_sym)
-    derive_channel(cfg)
+    # logged when the test starts, not at load time
+    cfg["warnings"] = derive_channel(cfg)
     wf = phy.waveforms.WAVEFORMS[cfg["waveform"]["type"]]
-    for message in wf.derive_params(cfg):
-        logger.warning("%s: %s", cfg["name"], message)
+    cfg["warnings"] += wf.derive_params(cfg)
 
     return cfg
 
@@ -53,6 +53,7 @@ def derive_channel(cfg):
     is_doppler_fixed = channel_cfg["doppler_mode"] == "fixed"
 
     delays_smpl, avg_gains_db, fixed_dopplers_norm = [], [], []
+    rounded_delays = []
     for path in channel_cfg["paths"]:
         assert ("delay_us" in path) != ("delay_smpl" in path), "Set exactly one of delay_us / delay_smpl"
 
@@ -62,7 +63,7 @@ def derive_channel(cfg):
             delay_exact_smpl = path["delay_us"] * US_TO_S_RATIO * sampling_rate_hz
             delay_smpl = int(round(delay_exact_smpl))
             if abs(delay_smpl - delay_exact_smpl) > ROUND_THRESHOLD:
-                logger.warning("%s: delay %s us = %.3f smpl, rounded to %d", cfg["name"], path["delay_us"], delay_exact_smpl, delay_smpl)
+                rounded_delays.append(f"{path['delay_us']} us = {delay_exact_smpl:.3f} -> {delay_smpl}")
         delays_smpl.append(delay_smpl)
         avg_gains_db.append(path.get("avg_gain_db", 0.0))
 
@@ -87,3 +88,8 @@ def derive_channel(cfg):
     channel_cfg["delays_smpl"] = delays_smpl
     channel_cfg["avg_powers"] = avg_powers.tolist()
     channel_cfg["max_doppler_shift_norm"] = float(max_doppler_shift_norm)
+
+    warnings = []
+    if rounded_delays:
+        warnings.append("delays rounded to smpl: " + ", ".join(rounded_delays))
+    return warnings

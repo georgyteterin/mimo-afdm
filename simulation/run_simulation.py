@@ -1,4 +1,5 @@
 import logging
+import time
 import numpy as np
 import phy
 
@@ -7,6 +8,8 @@ STREAM_CHANNEL = 1
 STREAM_NOISE = 2
 EBN0_KEY_SCALE = 100           # 0.01 dB resolution
 EBN0_KEY_OFFSET = 1_000_000    # SeedSequence needs non-negative ints
+
+LOW_STAT_NUM_ERR = 100  # relative std of BER ~ 1/sqrt(num_err): 10% at 100 errors
 
 logger = logging.getLogger(__name__)
 
@@ -40,19 +43,23 @@ def run_test(global_cfg: dict):
     stat["num_err"] = np.zeros(ebn0_vals_db.shape, dtype=int)
     stat["num_bits"] = np.full(ebn0_vals_db.shape, num_trials * num_bits)
 
-    logger.info("%s started: %d Eb/N0 points, %d trials each", test_name.upper(), len(ebn0_vals_db), num_trials)
+    logger.info("%s: Eb/N0 %g..%g dB (%d pts), %d trials", test_name, ebn0_vals_db.min(), ebn0_vals_db.max(), len(ebn0_vals_db), num_trials)
+    for warning in global_cfg.get("warnings", []):
+        logger.warning("%s: %s", test_name, warning)
 
     for j_ebn0, ebn0_db in enumerate(ebn0_vals_db):
+        start_s = time.perf_counter()
         num_err = 0
         for j_trial in range(num_trials):
             rngs = make_rngs(global_cfg["seed"], ebn0_db, j_trial)
             num_err += run_trial(ebn0_db, global_cfg, test_cfg, rngs)
         stat["num_err"][j_ebn0] = num_err
-        logger.info("[%i/%i] Eb/N0 %s dB done: BER=%.3e", j_ebn0 + 1, len(ebn0_vals_db), ebn0_db, num_err / stat["num_bits"][j_ebn0])
+        logger.info("%s: [%d/%d] %5.1f dB  BER %.2e  (%d err / %d bit)  %.1f s%s",
+                    test_name, j_ebn0 + 1, len(ebn0_vals_db), ebn0_db, num_err / stat["num_bits"][j_ebn0],
+                    num_err, stat["num_bits"][j_ebn0], time.perf_counter() - start_s,
+                    "  low stat" if num_err < LOW_STAT_NUM_ERR else "")
 
     stat["ber"] = stat["num_err"] / stat["num_bits"]
-
-    logger.info("%s finished \n", test_name.upper())
     return stat
 
 def run_trial(ebn0_db, global_cfg, test_cfg, rngs):

@@ -38,3 +38,14 @@ def test_clopper_pearson_edges():
     ber_low, ber_high = calc_clopper_pearson(np.array([0, 10]), np.array([1000, 1000]))
     assert ber_low[0] == 0 and np.isclose(ber_high[0], 1 - 0.025 ** (1 / 1000))
     assert ber_low[1] < 0.01 < ber_high[1]
+
+def test_summary_table():
+    from runners.ber_vs_ebn0 import format_summary
+    stats = {
+        "a": {"ebn0_db": np.array([0, 2]), "ber": np.array([1e-1, 1e-3]), "num_err": np.array([500, 20])},
+        "bb": {"ebn0_db": np.array([2, 4]), "ber": np.array([1e-2, 1e-4]), "num_err": np.array([300, 150])},
+    }
+    lines = format_summary(stats, {"a": 1.0, "bb": 2.0}).splitlines()
+    assert lines[1].split() == ["test", "time", "0", "dB", "2", "dB", "4", "dB"]
+    assert "1.00e-03*" in lines[2] and lines[2].rstrip().endswith("-")
+    assert lines[-1].startswith("* fewer than")
