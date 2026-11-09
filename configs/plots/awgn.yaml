@@ -1,0 +1,16 @@
+# AWGN channel: AFDM vs OFDM
+# Run first: python -m runners.ber_vs_ebn0 --cfg configs/sim/fading_test.yaml
+title: null
+ci: false
+theory: ['qpsk_awgn']
+curves:
+  - path: results/awgn_test/afdm_awgn.json
+    label: AFDM
+    marker: "o"
+    color: tab:red
+    ls: "-"
+  - path: results/awgn_test/ofdm_awgn.json
+    label: OFDM
+    marker: "^"
+    color: tab:blue
+    ls: "-"

@@ -6,5 +6,5 @@ codestyle.txt
 *png
 *patch
 results/
-configs/plots/
-configs/sim/
+configs/plots/draft_*.yaml
+configs/sim/draft_*.yaml
