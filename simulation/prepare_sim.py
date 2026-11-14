@@ -3,6 +3,7 @@ import yaml
 import numpy as np
 import phy
 import logging
+from simulation.adaptive_grid import check_adaptive_cfg
 
 US_TO_S_RATIO = 1e-6
 ROUND_THRESHOLD = 1e-3
@@ -16,7 +17,19 @@ def get_tests(path):
         tests = yaml.safe_load(f)["tests"]
     return [derive_params({"name": name, **copy.deepcopy(cfg)}) for name, cfg in tests.items()]
 
+def derive_noise(cfg):
+    noise_cfg = cfg["noise"]
+    assert "ebn0_db" in noise_cfg or "adaptive" in noise_cfg, "noise: set ebn0_db and/or adaptive"
+    if "adaptive" in noise_cfg:
+        adaptive_cfg = noise_cfg["adaptive"]
+        # yaml reads 1e-6 (no dot) as a string
+        for key in ("start_db", "stop_db", "min_step_db", "max_log10_ber_step", "min_ber"):
+            if key in adaptive_cfg:
+                adaptive_cfg[key] = float(adaptive_cfg[key])
+        check_adaptive_cfg(adaptive_cfg)
+
 def derive_params(cfg):
+    derive_noise(cfg)
     grid = cfg["grid"]
     grid["num_re"] = grid["num_sc"] * grid["num_blocks"] # re = resource elements
 

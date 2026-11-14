@@ -6,6 +6,7 @@ import yaml
 import simulation as sim
 from plotters.plot_ber import check_plot_cfg, calc_clopper_pearson
 from conftest import make_cfg
+from simulation.adaptive_grid import make_coarse_grid
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SIM_CFG_PATHS = sorted((REPO_ROOT / "configs" / "sim").rglob("*.yaml"))
@@ -15,6 +16,8 @@ PLOT_CFG_PATHS = sorted((REPO_ROOT / "configs" / "plots").glob("*.yaml"))
 def test_sim_config_runs(cfg_path):
     for cfg in sim.get_tests(cfg_path):
         cfg["num_trials"] = 2
+        if "ebn0_db" not in cfg["noise"]:  # adaptive-only config: first coarse point
+            cfg["noise"]["ebn0_db"] = make_coarse_grid(cfg["noise"]["adaptive"])
         cfg["noise"]["ebn0_db"] = cfg["noise"]["ebn0_db"][:1]
         stat = sim.run_test(cfg)
         assert 0 <= stat["ber"][0] <= 1

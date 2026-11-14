@@ -33,11 +33,11 @@ def run_early_stop_reference(test, chunk_num_trials, target_num_err):
     return np.array(num_err), np.array(num_trials)
 
 def test_build_tasks_covers_all_trials():
-    tests = [{"noise": {"ebn0_db": [0, 5]}, "num_trials": 7}]
-    tasks = build_tasks(tests, chunk_num_trials=3)
+    tests = [{"num_trials": 7}]
+    tasks = build_tasks(tests, [(0, 0.0), (0, 5.0)], chunk_num_trials=3)
     assert len(tasks) == 6
-    assert [(j_start, j_stop) for _, j_ebn0, _, j_start, j_stop in tasks if j_ebn0 == 0] == [(0, 3), (3, 6), (6, 7)]
-    assert [task[2] for task in tasks] == [0, 0, 1, 1, 2, 2]  # chunk-major order
+    assert [(j_start, j_stop) for point_key, _, j_start, j_stop in tasks if point_key == (0, 0.0)] == [(0, 3), (3, 6), (6, 7)]
+    assert [(task[0][1], task[1]) for task in tasks] == [(0.0, 0), (0.0, 1), (0.0, 2), (5.0, 0), (5.0, 1), (5.0, 2)]  # low Eb/N0 first
 
 def test_update_point_ignores_completion_order():
     chunk_errs = [400, 300, 500, 200]
@@ -69,3 +69,35 @@ def test_early_stop_matches_reference(tmp_path, num_workers):
     assert np.array_equal(stats[test["name"]]["num_err"], num_err_ref)
     assert np.array_equal(stats[test["name"]]["num_trials"], num_trials_ref)
     assert num_trials_ref[0] < num_trials_ref[-1]  # low Eb/N0 point really stopped early
+
+
+def write_adaptive_cfg(tmp_path):
+    with open(REPO_ROOT / "configs" / "sim" / "fading_test.yaml", encoding="utf-8") as f:
+        raw = yaml.safe_load(f)
+    raw["tests"] = {"afdm_mmse": raw["tests"]["afdm_mmse"]}
+    test = raw["tests"]["afdm_mmse"]
+    test["num_trials"] = 6
+    test["noise"] = {
+        "adaptive": {"start_db": 0, "stop_db": 40, "num_coarse_pts": 3, "min_step_db": 5,
+                     "max_log10_ber_step": 0.3, "min_ber": "1e-3", "max_rounds": 2},
+        "count_cp_energy": False,
+    }
+    cfg_path = tmp_path / "adaptive.yaml"
+    cfg_path.write_text(yaml.safe_dump(raw), encoding="utf-8")
+    return cfg_path
+
+@pytest.mark.parametrize("num_workers", [1, 2])
+def test_adaptive_points_match_reference(tmp_path, num_workers):
+    # every final point equals the serial early-stop reference at the same Eb/N0
+    cfg_path = write_adaptive_cfg(tmp_path)
+    test = sim.get_tests(cfg_path)[0]
+    stat = run_ber_vs_ebn0_parallel(cfg_path, [], tmp_path / "results", num_workers, chunk_num_trials=2, target_num_err=300)["afdm_mmse"]
+    assert np.all(np.diff(stat["ebn0_db"]) > 0) and stat["j_round"].max() >= 1  # sorted, refined at least once
+    test["noise"]["ebn0_db"] = stat["ebn0_db"].tolist()
+    num_err_ref, num_trials_ref = run_early_stop_reference(test, chunk_num_trials=2, target_num_err=300)
+    assert np.array_equal(stat["num_err"], num_err_ref) and np.array_equal(stat["num_trials"], num_trials_ref)
+
+def test_serial_runner_rejects_adaptive_only(tmp_path):
+    test = sim.get_tests(write_adaptive_cfg(tmp_path))[0]
+    with pytest.raises(AssertionError, match="parallel runner"):
+        sim.run_test(test)

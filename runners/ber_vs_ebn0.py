@@ -28,10 +28,10 @@ def select_tests(tests, test_names):
         raise SystemExit(f"Unknown tests {unknown_names}, available: {list(tests_by_name)}")
     return [tests_by_name[name] for name in test_names]
 
-def format_summary(stats, durations_s, time_label="time"):
+def format_summary(stats, durations_s, time_label="time", ms_per_trial=None):
     ebn0_cols_db = sorted({float(ebn0_db) for stat in stats.values() for ebn0_db in stat["ebn0_db"]})
     name_width = max(len("test"), *(len(name) for name in stats))
-    header = f"{'test':<{name_width}}  {time_label:>7}" + "".join(f"{f'{ebn0_db:g} dB':>10} " for ebn0_db in ebn0_cols_db)
+    header = f"{'test':<{name_width}}  {time_label:>7}" + (f"{'ms/trial':>10}" if ms_per_trial else "") + "".join(f"{f'{ebn0_db:g} dB':>10} " for ebn0_db in ebn0_cols_db)
     lines = ["BER:", header]
     is_low_stat_found = False
     for name, stat in stats.items():
@@ -45,7 +45,8 @@ def format_summary(stats, durations_s, time_label="time"):
             is_low_stat = num_err < LOW_STAT_NUM_ERR
             is_low_stat_found |= is_low_stat
             cells.append(f"{f'{ber:.2e}' + ('*' if is_low_stat else ' '):>11}")
-        lines.append(f"{name:<{name_width}}  {durations_s[name]:>5.1f} s" + "".join(cells))
+        ms_cell = f"{ms_per_trial[name]:>10.2f}" if ms_per_trial else ""
+        lines.append(f"{name:<{name_width}}  {durations_s[name]:>5.1f} s" + ms_cell + "".join(cells))
     if is_low_stat_found:
         lines.append(f"* fewer than {LOW_STAT_NUM_ERR} errors")
     return "\n".join(lines)
@@ -62,7 +63,8 @@ def run_ber_vs_ebn0(cfg_path, test_names, out_dir):
         out_path = sim.save_results(cfg_path, test, stats[test["name"]], started_at, durations_s[test["name"]], out_dir)
         logger.info("%s: done in %.1f s -> %s", test["name"], durations_s[test["name"]], out_path)
     logger.info("%s", format_separator(f"summary: {len(tests)} tests, {sum(durations_s.values()):.1f} s"))
-    logger.info("%s", format_summary(stats, durations_s))
+    ms_per_trial = {test["name"]: 1e3 * durations_s[test["name"]] / (test["num_trials"] * len(test["noise"]["ebn0_db"])) for test in tests}
+    logger.info("%s", format_summary(stats, durations_s, ms_per_trial=ms_per_trial))
     return stats
 
 if __name__ == "__main__":

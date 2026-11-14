@@ -46,6 +46,7 @@ def run_test(global_cfg: dict):
 
     test_name = global_cfg["name"]
 
+    assert "ebn0_db" in global_cfg["noise"], f"{test_name}: no ebn0_db; adaptive grid works only in the parallel runner"
     ebn0_vals_db = np.array(global_cfg["noise"]["ebn0_db"])
     num_trials = global_cfg["num_trials"]
     num_bits = global_cfg["num_bits"]
