@@ -1,0 +1,21 @@
+# long test!
+# Fading channel, MMSE equalizers: AFDM vs OFDM
+title: null
+ci: false
+theory: []
+curves:
+  - path: results/long/fading_test/afdm_mmse
+    label: AFDM MMSE
+    marker: "o"
+    color: tab:red
+    ls: "-"
+  - path: results/long/fading_test/ofdm_mmse_full
+    label: OFDM MMSE
+    marker: "^"
+    color: tab:blue
+    ls: "-"
+  - path: results/long/fading_test/ofdm_mmse_diag
+    label: OFDM MMSE diag
+    marker: "^"
+    color: tab:olive
+    ls: "-"
