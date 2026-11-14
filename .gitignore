@@ -9,3 +9,4 @@ codestyle.txt
 results/
 configs/plots/draft_*.yaml
 configs/sim/draft_*.yaml
+configs/sim/long/draft_*.yaml

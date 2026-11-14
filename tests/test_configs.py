@@ -8,10 +8,10 @@ from plotters.plot_ber import check_plot_cfg, calc_clopper_pearson
 from conftest import make_cfg
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SIM_CFG_PATHS = sorted((REPO_ROOT / "configs" / "sim").glob("*.yaml"))
+SIM_CFG_PATHS = sorted((REPO_ROOT / "configs" / "sim").rglob("*.yaml"))
 PLOT_CFG_PATHS = sorted((REPO_ROOT / "configs" / "plots").glob("*.yaml"))
 
-@pytest.mark.parametrize("cfg_path", SIM_CFG_PATHS, ids=lambda path: path.name)
+@pytest.mark.parametrize("cfg_path", SIM_CFG_PATHS, ids=lambda path: path.relative_to(REPO_ROOT / "configs" / "sim").as_posix())
 def test_sim_config_runs(cfg_path):
     for cfg in sim.get_tests(cfg_path):
         cfg["num_trials"] = 2
@@ -49,3 +49,12 @@ def test_summary_table():
     assert lines[1].split() == ["test", "time", "0", "dB", "2", "dB", "4", "dB"]
     assert "1.00e-03*" in lines[2] and lines[2].rstrip().endswith("-")
     assert lines[-1].startswith("* fewer than")
+
+@pytest.mark.parametrize("cfg_path, subdir", [
+    (REPO_ROOT / "configs" / "sim" / "fading_test.yaml", "fading_test"),
+    (REPO_ROOT / "configs" / "sim" / "long" / "fading_test.yaml", "long/fading_test"),
+    (Path("elsewhere") / "my_cfg.yaml", "my_cfg"),
+])
+def test_result_subdir_mirrors_sim_configs(cfg_path, subdir):
+    from simulation.save_results import get_result_subdir
+    assert get_result_subdir(cfg_path).as_posix() == subdir
