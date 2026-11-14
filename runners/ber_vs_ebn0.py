@@ -16,7 +16,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="BER vs Eb/N0 for tests from a yaml config")
     parser.add_argument("--cfg", required=True, help="path to yaml config, e.g. configs/sim/awgn_test.yaml")
     parser.add_argument("--test", nargs="*", default=[], help="test names from the config; all tests if omitted")
-    parser.add_argument("--out-dir", default="results", help="results root, saved as <out-dir>/<cfg path under configs/sim>/<test>.json")
+    parser.add_argument("--out-dir", default="results", help="results root, saved as <out-dir>/<cfg stem>/<test>.json")
     return parser.parse_args()
 
 def select_tests(tests, test_names):
@@ -28,10 +28,10 @@ def select_tests(tests, test_names):
         raise SystemExit(f"Unknown tests {unknown_names}, available: {list(tests_by_name)}")
     return [tests_by_name[name] for name in test_names]
 
-def format_summary(stats, durations_s, time_label="time"):
+def format_summary(stats, durations_s):
     ebn0_cols_db = sorted({float(ebn0_db) for stat in stats.values() for ebn0_db in stat["ebn0_db"]})
     name_width = max(len("test"), *(len(name) for name in stats))
-    header = f"{'test':<{name_width}}  {time_label:>7}" + "".join(f"{f'{ebn0_db:g} dB':>10} " for ebn0_db in ebn0_cols_db)
+    header = f"{'test':<{name_width}}  {'time':>7}" + "".join(f"{f'{ebn0_db:g} dB':>10} " for ebn0_db in ebn0_cols_db)
     lines = ["BER:", header]
     is_low_stat_found = False
     for name, stat in stats.items():

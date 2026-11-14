@@ -23,25 +23,6 @@ def make_rngs(base_seed, ebn0_db, j_trial):
         "noise": make_rng(STREAM_NOISE),
     }
 
-def prepare_test_cfg(global_cfg):
-    equalizer_type = global_cfg["equalizer"]["type"]
-    wf = phy.waveforms.WAVEFORMS[global_cfg["waveform"]["type"]]
-    test_cfg = {}
-    test_cfg["is_h_eff_needed"] = phy.equalizers.IS_H_EFF_NEEDED[equalizer_type]
-    if test_cfg["is_h_eff_needed"]:
-        test_cfg["mod_mtrx"], test_cfg["demod_mtrx"] = phy.effective_channel.calc_transform_matrices(wf, global_cfg["waveform"], global_cfg["grid"]["num_sc"])
-    return test_cfg
-
-def run_trial_chunk(global_cfg, ebn0_db, j_trial_start, j_trial_stop):
-    # unit of work for the parallel runner: same seeds as run_test, so results are bit-exact
-    start_s = time.perf_counter()
-    test_cfg = prepare_test_cfg(global_cfg)
-    num_err = 0
-    for j_trial in range(j_trial_start, j_trial_stop):
-        rngs = make_rngs(global_cfg["seed"], ebn0_db, j_trial)
-        num_err += run_trial(ebn0_db, global_cfg, test_cfg, rngs)
-    return num_err, time.perf_counter() - start_s
-
 def run_test(global_cfg: dict):
 
     test_name = global_cfg["name"]
@@ -49,8 +30,13 @@ def run_test(global_cfg: dict):
     ebn0_vals_db = np.array(global_cfg["noise"]["ebn0_db"])
     num_trials = global_cfg["num_trials"]
     num_bits = global_cfg["num_bits"]
+    equalizer_type = global_cfg["equalizer"]["type"]
 
-    test_cfg = prepare_test_cfg(global_cfg)
+    wf = phy.waveforms.WAVEFORMS[global_cfg["waveform"]["type"]]
+    test_cfg = {}
+    test_cfg["is_h_eff_needed"] = phy.equalizers.IS_H_EFF_NEEDED[equalizer_type]
+    if test_cfg["is_h_eff_needed"]:
+        test_cfg["mod_mtrx"], test_cfg["demod_mtrx"] = phy.effective_channel.calc_transform_matrices(wf, global_cfg["waveform"], global_cfg["grid"]["num_sc"])
 
     stat = {}
     stat["ebn0_db"] = ebn0_vals_db

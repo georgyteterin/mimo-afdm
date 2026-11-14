@@ -6,7 +6,6 @@ from pathlib import Path
 import numpy as np
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SIM_CFG_ROOT = REPO_ROOT / "configs" / "sim"
 
 logger = logging.getLogger(__name__)
 
@@ -18,14 +17,6 @@ def get_git_info():
         return None
     return {"commit": commit, "is_dirty": bool(status.strip())}
 
-def get_result_subdir(cfg_path):
-    # configs/sim/long/fading_test.yaml -> long/fading_test; outside configs/sim -> file stem
-    cfg_path = Path(cfg_path).resolve()
-    try:
-        return cfg_path.relative_to(SIM_CFG_ROOT).with_suffix("")
-    except ValueError:
-        return Path(cfg_path.stem)
-
 def convert_numpy(obj):
     if isinstance(obj, np.ndarray):
         return obj.tolist()
@@ -33,7 +24,7 @@ def convert_numpy(obj):
         return obj.item()
     raise TypeError(f"{type(obj).__name__} is not JSON serializable")
 
-def save_results(cfg_path, test_cfg, stat, started_at, duration_s, out_dir="results", run_info=None):
+def save_results(cfg_path, test_cfg, stat, started_at, duration_s, out_dir="results"):
     git_info = get_git_info()
     if git_info is None:
         logger.warning("%s: git info unavailable", test_cfg["name"])
@@ -53,10 +44,8 @@ def save_results(cfg_path, test_cfg, stat, started_at, duration_s, out_dir="resu
         "duration_s": round(duration_s, 3),
         "versions": {"python": platform.python_version(), "numpy": np.__version__},
     }
-    if run_info is not None:
-        result["run_info"] = run_info
 
-    out_path = Path(out_dir) / get_result_subdir(cfg_path) / f"{test_cfg['name']}.json"
+    out_path = Path(out_dir) / Path(cfg_path).stem / f"{test_cfg['name']}.json"
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(result, f, indent=2, default=convert_numpy)
