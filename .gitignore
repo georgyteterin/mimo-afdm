@@ -1,5 +1,11 @@
 .vscode
+.env
 *zip
 *pyc
 codestyle.txt
 *xml
+*png
+*patch
+results/
+configs/sim/**/local/
+configs/plots/**/local/

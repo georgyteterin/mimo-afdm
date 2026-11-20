@@ -1,0 +1,15 @@
+# Plot config for configs/sim/awgn_test.yaml, created on the first run.
+# Edit freely, it is never overwritten. Keys and values: configs/plots/REFERENCE.md
+title: null
+ci: false
+theory: [qpsk_awgn]    # e.g. [qpsk_awgn, qpsk_rayleigh]
+curves:
+  - path: results/awgn_test/ofdm_awgn
+    label: ofdm_awgn
+    color: tab:blue
+    marker: "o"
+    # ls: "-"
+  - path: results/awgn_test/afdm_awgn
+    label: afdm_awgn
+    color: tab:red
+    marker: "^"

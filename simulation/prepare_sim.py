@@ -1,8 +1,9 @@
 import copy
-import yaml 
+import yaml
 import numpy as np
 import phy
 import logging
+from simulation.adaptive_grid import check_adaptive_cfg
 
 US_TO_S_RATIO = 1e-6
 ROUND_THRESHOLD = 1e-3
@@ -16,12 +17,30 @@ def get_tests(path):
         tests = yaml.safe_load(f)["tests"]
     return [derive_params({"name": name, **copy.deepcopy(cfg)}) for name, cfg in tests.items()]
 
+def derive_noise(cfg):
+    noise_cfg = cfg["noise"]
+    assert "ebn0_db" in noise_cfg or "adaptive" in noise_cfg, "noise: set ebn0_db and/or adaptive"
+    if "adaptive" in noise_cfg:
+        adaptive_cfg = noise_cfg["adaptive"]
+        # yaml reads 1e-6 (no dot) as a string
+        for key in ("start_db", "stop_db", "min_step_db", "max_log10_ber_step", "min_ber"):
+            if key in adaptive_cfg:
+                adaptive_cfg[key] = float(adaptive_cfg[key])
+        check_adaptive_cfg(adaptive_cfg)
+
 def derive_params(cfg):
+    derive_noise(cfg)
     grid = cfg["grid"]
     grid["num_re"] = grid["num_sc"] * grid["num_blocks"] # re = resource elements
 
     num_bits_per_sym = np.log2(cfg["mod_order"])
     assert num_bits_per_sym % 1 == 0, "Mod order needs to be power 2 of integer"
+
+    if "seed" not in cfg:
+        cfg["seed"] = 0
+    if cfg["seed"] is None:
+        cfg["seed"] = int(np.random.SeedSequence().entropy)
+        logger.info("%s: seed is null, drawn from OS entropy: %d", cfg["name"], cfg["seed"])
 
     if "equalizer" not in cfg:
         cfg["equalizer"] = {"type": "transparent"}
@@ -29,10 +48,10 @@ def derive_params(cfg):
     assert equalizer_type in phy.equalizers.EQUALIZERS, f"equalizer must be one of {tuple(phy.equalizers.EQUALIZERS)}"
 
     cfg["num_bits"] = grid["num_re"] * int(num_bits_per_sym)
-    derive_channel(cfg)
+    # logged when the test starts, not at load time
+    cfg["warnings"] = derive_channel(cfg)
     wf = phy.waveforms.WAVEFORMS[cfg["waveform"]["type"]]
-    for message in wf.derive_params(cfg):
-        logger.warning("%s: %s", cfg["name"], message)
+    cfg["warnings"] += wf.derive_params(cfg)
 
     return cfg
 
@@ -47,6 +66,7 @@ def derive_channel(cfg):
     is_doppler_fixed = channel_cfg["doppler_mode"] == "fixed"
 
     delays_smpl, avg_gains_db, fixed_dopplers_norm = [], [], []
+    rounded_delays = []
     for path in channel_cfg["paths"]:
         assert ("delay_us" in path) != ("delay_smpl" in path), "Set exactly one of delay_us / delay_smpl"
 
@@ -56,7 +76,7 @@ def derive_channel(cfg):
             delay_exact_smpl = path["delay_us"] * US_TO_S_RATIO * sampling_rate_hz
             delay_smpl = int(round(delay_exact_smpl))
             if abs(delay_smpl - delay_exact_smpl) > ROUND_THRESHOLD:
-                logger.warning("%s: delay %s us = %.3f smpl, rounded to %d", cfg["name"], path["delay_us"], delay_exact_smpl, delay_smpl)
+                rounded_delays.append(f"{path['delay_us']} us = {delay_exact_smpl:.3f} -> {delay_smpl}")
         delays_smpl.append(delay_smpl)
         avg_gains_db.append(path.get("avg_gain_db", 0.0))
 
@@ -81,3 +101,8 @@ def derive_channel(cfg):
     channel_cfg["delays_smpl"] = delays_smpl
     channel_cfg["avg_powers"] = avg_powers.tolist()
     channel_cfg["max_doppler_shift_norm"] = float(max_doppler_shift_norm)
+
+    warnings = []
+    if rounded_delays:
+        warnings.append("delays rounded to smpl: " + ", ".join(rounded_delays))
+    return warnings

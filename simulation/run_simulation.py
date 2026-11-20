@@ -1,69 +1,104 @@
-from tqdm import tqdm
+import json
 import logging
+import time
 import numpy as np
 import phy
 
+STREAM_BITS = 0
+STREAM_CHANNEL = 1
+STREAM_NOISE = 2
+EBN0_KEY_SCALE = 100           # 0.01 dB resolution
+EBN0_KEY_OFFSET = 1_000_000    # SeedSequence needs non-negative ints
+
+LOW_STAT_NUM_ERR = 100  # relative std of BER ~ 1/sqrt(num_err): 10% at 100 errors
+
 logger = logging.getLogger(__name__)
+
+# per-process cache of transform matrices, reused across chunks of a worker
+test_cfg_cache = {}
+
+def make_rngs(base_seed, ebn0_db, j_trial):
+    ebn0_key = int(round(ebn0_db * EBN0_KEY_SCALE)) + EBN0_KEY_OFFSET
+    def make_rng(stream_id):
+        return np.random.default_rng(np.random.SeedSequence([base_seed, ebn0_key, j_trial, stream_id]))
+    return {
+        "bits": make_rng(STREAM_BITS),
+        "channel": make_rng(STREAM_CHANNEL),
+        "noise": make_rng(STREAM_NOISE),
+    }
+
+def prepare_test_cfg(global_cfg):
+    equalizer_type = global_cfg["equalizer"]["type"]
+    wf = phy.waveforms.WAVEFORMS[global_cfg["waveform"]["type"]]
+    test_cfg = {}
+    test_cfg["is_h_eff_needed"] = phy.equalizers.IS_H_EFF_NEEDED[equalizer_type]
+    if test_cfg["is_h_eff_needed"]:
+        test_cfg["mod_mtrx"], test_cfg["demod_mtrx"] = phy.effective_channel.calc_transform_matrices(wf, global_cfg["waveform"], global_cfg["grid"]["num_sc"])
+    return test_cfg
+
+def get_test_cfg(global_cfg):
+    # matrices depend only on the waveform, its size and the equalizer
+    cache_key = json.dumps([global_cfg["waveform"], global_cfg["grid"]["num_sc"], global_cfg["equalizer"]["type"]], sort_keys=True)
+    if cache_key not in test_cfg_cache:
+        test_cfg_cache[cache_key] = prepare_test_cfg(global_cfg)
+    return test_cfg_cache[cache_key]
+
+def run_trial_chunk(global_cfg, ebn0_db, j_trial_start, j_trial_stop):
+    # trials [start, stop) of one Eb/N0 point; per-trial seeds make any split bit-exact
+    start_s = time.perf_counter()
+    test_cfg = get_test_cfg(global_cfg)
+    num_err = 0
+    for j_trial in range(j_trial_start, j_trial_stop):
+        rngs = make_rngs(global_cfg["seed"], ebn0_db, j_trial)
+        num_err += run_trial(ebn0_db, global_cfg, test_cfg, rngs)
+    return num_err, time.perf_counter() - start_s
 
 def run_test(global_cfg: dict):
 
     test_name = global_cfg["name"]
 
-    snr_vals = np.array(global_cfg["noise"]["snr_db"])
+    assert "ebn0_db" in global_cfg["noise"], f"{test_name}: no ebn0_db; adaptive grid works only in the parallel runner"
+    ebn0_vals_db = np.array(global_cfg["noise"]["ebn0_db"])
     num_trials = global_cfg["num_trials"]
     num_bits = global_cfg["num_bits"]
 
-    wf = phy.waveforms.WAVEFORMS[global_cfg["waveform"]["type"]]
-    test_cfg = {}
-    test_cfg["equ"] = phy.equalizers.EQUALIZERS[global_cfg["equalizer"]["type"]]
-    test_cfg["mod_mtrx"], test_cfg["demod_mtrx"] = phy.effective_channel.calc_transform_matrices(wf, global_cfg["waveform"], global_cfg["grid"]["num_sc"])
-    
-
     stat = {}
-    stat["ber"] = np.zeros(snr_vals.shape)
+    stat["ebn0_db"] = ebn0_vals_db
+    stat["num_err"] = np.zeros(ebn0_vals_db.shape, dtype=int)
+    stat["num_bits"] = np.full(ebn0_vals_db.shape, num_trials * num_bits)
 
-    logger.info("%s started: %d SNR points, %d trials each", test_name.upper(), len(snr_vals), num_trials)
+    logger.info("%s: Eb/N0 %g..%g dB (%d pts), %d trials", test_name, ebn0_vals_db.min(), ebn0_vals_db.max(), len(ebn0_vals_db), num_trials)
+    for warning in global_cfg.get("warnings", []):
+        logger.warning("%s: %s", test_name, warning)
 
-    for j_snr, snr_db in enumerate(snr_vals):
-        num_err = 0
-        for _ in range(num_trials):
-            num_err += run_snr_point(snr_db, global_cfg, test_cfg)
-        stat["ber"][j_snr] = num_err / (num_trials * num_bits)
-        logger.info("[%i/%i] SNR %s dB done: BER=%.3e", j_snr+1, len(snr_vals), snr_db, stat["ber"][j_snr])
+    for j_ebn0, ebn0_db in enumerate(ebn0_vals_db):
+        num_err, point_s = run_trial_chunk(global_cfg, ebn0_db, 0, num_trials)
+        stat["num_err"][j_ebn0] = num_err
+        logger.info("%s: [%d/%d] %5.1f dB  BER %.2e  %d / %d [err/bit]  %.1f s%s",
+                    test_name, j_ebn0 + 1, len(ebn0_vals_db), ebn0_db, num_err / stat["num_bits"][j_ebn0],
+                    num_err, stat["num_bits"][j_ebn0], point_s,
+                    "  low stat" if num_err < LOW_STAT_NUM_ERR else "")
 
-    logger.info("%s finished \n", test_name.upper())
+    stat["ber"] = stat["num_err"] / stat["num_bits"]
     return stat
 
-def run_snr_point(snr_db, global_cfg, test_cfg):
+def run_trial(ebn0_db, global_cfg, test_cfg, rngs):
 
-    wf_cfg = global_cfg["waveform"]
     grid_params = global_cfg["grid"]
     num_bits = global_cfg["num_bits"]
-    mod_order = global_cfg["mod_order"]
     is_cp_energy_counted = global_cfg["noise"]["count_cp_energy"]
 
-    equalizer = test_cfg["equ"]
-    mod_matrix = test_cfg["mod_mtrx"]
-    demod_matrix = test_cfg["demod_mtrx"]
+    tx_bits = rngs["bits"].integers(2, size=num_bits)
+    tx_sig = phy.transceiver.run_tx_chain(tx_bits, global_cfg)
 
-    grid_shape = (grid_params["num_blocks"], grid_params["num_sc"])
-    wf = phy.waveforms.WAVEFORMS[wf_cfg["type"]]
+    chan_implementation = phy.fading_channel.generate(global_cfg, rngs["channel"])
+    rx_sig_no_noise = phy.fading_channel.apply(tx_sig, chan_implementation)
+    rx_sig, noise_energy = phy.add_noise(rx_sig_no_noise, ebn0_db, num_bits, grid_params["num_re"], is_cp_energy_counted, rngs["noise"])
 
-    # Pipeline
-    tx_bits = np.random.randint(2, size=num_bits)
-    tx_symbs = phy.qam_mapper(tx_bits, mod_order)
-
-    tx_sig = wf.modulate(tx_symbs, wf_cfg, grid_shape)
-
-    chan_implementation = phy.fading_channel.generate(global_cfg)
-    rx_sig = phy.fading_channel.apply(tx_sig, chan_implementation)
-    rx_sig, noise_energy = phy.add_noise(rx_sig, snr_db, num_bits, grid_params["num_re"], is_cp_energy_counted)
-
-    rx_symbs = wf.demodulate(rx_sig, wf_cfg, grid_shape).reshape(grid_shape)
-
-    h_eff = phy.effective_channel.calc_eff_chan_mtrx(chan_implementation, mod_matrix, demod_matrix, grid_params["num_blocks"])
-    est_symbs = equalizer(rx_symbs, h_eff, noise_energy)
-    rx_bits = phy.qam_demapper(est_symbs.reshape(-1), mod_order)
+    h_eff = None
+    if test_cfg["is_h_eff_needed"]:
+        h_eff = phy.effective_channel.calc_eff_chan_mtrx(chan_implementation, test_cfg["mod_mtrx"], test_cfg["demod_mtrx"], grid_params["num_blocks"])
+    rx_bits = phy.transceiver.run_rx_chain(rx_sig, h_eff, noise_energy, global_cfg)
 
     num_bit_errors = np.sum(tx_bits != rx_bits)
     return num_bit_errors

@@ -25,7 +25,7 @@ def calc_eff_chan_mtrx(chan_implementation, mod_matrix, demod_matrix, num_blocks
 
         for delay_smpl, path_gain, doppler_shift_per_smpl in zip(chan_implementation["delays_smpl"],
                                                                chan_implementation["gains"],
-                                                               chan_implementation["doppler_shift_per_smpl"]):
+                                                               chan_implementation["doppler_shift_per_smpl"], strict=True):
             rx_idxs = np.arange(delay_smpl, block_len_smpl)
             frame_idxs = block_idx * block_len_smpl + rx_idxs
             time_channel[rx_idxs, rx_idxs - delay_smpl] += path_gain * np.exp(2j * np.pi * doppler_shift_per_smpl * frame_idxs)

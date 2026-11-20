@@ -1,0 +1,21 @@
+# Fading channel, MMSE equalizers: AFDM vs OFDM
+# Run first: python -m runners.ber_vs_ebn0 --cfg configs/sim/fading_test.yaml
+title: null
+ci: false
+theory: []
+curves:
+  - path: results/fading_test/afdm_mmse
+    label: AFDM MMSE
+    marker: "o"
+    color: tab:red
+    ls: "-"
+  - path: results/fading_test/ofdm_mmse_full
+    label: OFDM MMSE
+    marker: "^"
+    color: tab:blue
+    ls: "-"
+  - path: results/fading_test/ofdm_mmse_diag
+    label: OFDM MMSE diag
+    marker: "^"
+    color: tab:olive
+    ls: "-"

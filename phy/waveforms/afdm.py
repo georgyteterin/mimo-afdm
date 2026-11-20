@@ -54,5 +54,5 @@ def demodulate(extended_signal, wf_cfg, grid_shape):
 
     blocks = extended_signal.reshape(num_blocks, N + L)[:, L:]
     signal = daft(blocks, N, c1, c2).reshape(-1)
-    
+
     return signal

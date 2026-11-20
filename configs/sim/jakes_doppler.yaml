@@ -7,22 +7,24 @@ defaults: &common
   channel:
     paths:
       - {delay_smpl: 0, avg_gain_db: 0.0}
-    max_doppler_hz: 0
+      - {delay_smpl: 0, avg_gain_db: 0.0}
+      - {delay_smpl: 0, avg_gain_db: 0.0}
+      - {delay_smpl: 0, avg_gain_db: 0.0}
+    max_doppler_hz: 100
     doppler_mode: jakes
     fading: none
+    random_phases: true
   noise:
-    snr_db: [0, 2, 4, 6, 8, 10]
+    ebn0_db: [0, 2, 4, 6, 8, 10]
     count_cp_energy: false
+  seed: 0
   num_trials: 1000
 
 tests:
-  ofdm_awgn:
+  ofdm_max_doppler_100Hz:
     <<: *common
     waveform:
       type: ofdm
       cp_len: 0.25
-  afdm_awgn:
-    <<: *common
-    waveform:
-      type: afdm
-      cp_len: 0.25
+    equalizer:
+      type: mmse_diag
